@@ -87,13 +87,12 @@ class SimpleController(Node):
                 self.integral[0] = 0
 
 
-            self.get_logger().info(f"Integral {self.integral}")
-
-
         #determine the speed output
         speed = self.dist_p_gain * state_error[0] + self.dist_i_gain * self.integral[0] + self.dist_d_gain * state_error_derivatives[0]
 
         anglular_rate = self.angle_p_gain * state_error[1] + self.angle_i_gain * self.integral[1] + self.angle_d_gain * state_error_derivatives[1]
+
+        self.get_logger().info(f"Error {anglular_rate} state {self.states[0]}")
 
         self.previous_tic_stamp = tic_time
 
@@ -128,7 +127,7 @@ class SimpleController(Node):
         self.prev_stamps = self.stamps
 
         #set the state from the message
-        self.states =np.array([msg.linear.x, msg.angular.z])
+        self.states = np.array([msg.linear.x, msg.angular.z])
 
         #stamp the data
         current_time = self.get_ros_time_as_double()
