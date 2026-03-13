@@ -81,6 +81,10 @@ class SimpleController(Node):
         if(self.previous_tic_stamp > 0):
             self.integral += (tic_time - self.previous_tic_stamp) * state_error
 
+            if(state_error > .25):
+                self.integral = 0
+
+
         #determine the speed output
         speed = self.dist_p_gain * state_error[0] + self.dist_i_gain * self.integral[0] + self.dist_d_gain * state_error_derivatives[0]
 
