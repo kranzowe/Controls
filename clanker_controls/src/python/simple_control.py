@@ -107,7 +107,7 @@ class SimpleController(Node):
 
         #stamp the data
         current_time = self.get_ros_time_as_double()
-        self.stamps = [current_time, current_time]
+        self.stamps = np.array([current_time, current_time])
 
     def paper_data_cb(self, msg):
         
