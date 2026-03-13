@@ -92,7 +92,7 @@ class SimpleController(Node):
 
         anglular_rate = self.angle_p_gain * state_error[1] + self.angle_i_gain * self.integral[1] + self.angle_d_gain * state_error_derivatives[1]
 
-        self.get_logger().info(f"Error {anglular_rate} state {self.states[1]}")
+        self.get_logger().info(f"Error {state_error[1]} state {self.states[1]}")
 
         self.previous_tic_stamp = tic_time
 
@@ -146,8 +146,8 @@ class SimpleController(Node):
         self.dist_d_gain = self.get_parameter("dist_d_gain").value
 
         self.angle_i_gain = self.get_parameter("angle_i_gain").value
-        self.angle_p_gain = self.get_parameter("angle_i_gain").value
-        self.angle_d_gain = self.get_parameter("angle_i_gain").value
+        self.angle_p_gain = self.get_parameter("angle_p_gain").value
+        self.angle_d_gain = self.get_parameter("angle_d_gain").value
 
         #make an necessary updates
         if not (self.control_freq == prev_control_freq):
