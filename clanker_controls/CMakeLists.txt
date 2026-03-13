@@ -11,6 +11,11 @@ find_package(ament_cmake REQUIRED)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
+file(GLOB PYTHON_EXEC ${CMAKE_CURRENT_SOURCE_DIR}/src/pythons/*.py)
+
+install(PROGRAMS ${PYTHON_EXEC}
+  DESTINATION lib/${PROJECT_NAME})
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
