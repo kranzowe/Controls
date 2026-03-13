@@ -43,7 +43,7 @@ class SimpleController(Node):
         self.command_pub = self.create_publisher(Twist, "/cmd_vel", 10)
 
         #sub to the sensor data
-        self.create_subscription(Float32, "/wall_dist", self.wall_dist_cb, 10)
+        self.create_subscription(Float32, "/ld_distance", self.wall_dist_cb, 10)
         self.create_subscription(Twist, "/paper_data", self.paper_data_cb, 10)
 
         #declare the ros2 parameters
