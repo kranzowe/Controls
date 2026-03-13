@@ -92,6 +92,8 @@ class SimpleController(Node):
         msg.linear.x = speed
         msg.angular.z = anglular_rate
 
+        self.command_pub.publish(msg)
+
     def get_ros_time_as_double(self):
         #return the ros2 time as float
         return self.get_clock().now().seconds_nanoseconds()[1] * 1e-9 + self.get_clock().now().seconds_nanoseconds()[0]
