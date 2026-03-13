@@ -100,6 +100,7 @@ class SimpleController(Node):
 
         anglular_rate = self.angle_p_gain * state_error[1] + self.angle_i_gain * self.integral[1] + self.angle_d_gain * state_error_derivatives[1]
 
+        self.previous_tic_stamp = tic_time
 
         #send out the message
         msg = Twist()
