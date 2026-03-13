@@ -78,7 +78,7 @@ class SimpleController(Node):
         state_error = (self.states - self.setpoint)
 
         #update the state integral 
-        if(self.previous_control_cycle > 0):
+        if(self.previous_tic_stamp > 0):
             self.integral += (tic_time - self.previous_tic_stamp) * state_error
 
         #determine the speed output
