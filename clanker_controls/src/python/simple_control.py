@@ -83,11 +83,16 @@ class SimpleController(Node):
 
             if(state_error > .35):
                 self.integral = 0
+            elif(state_error < -.35):
+                self.integral = 0
 
             if(self.integral > 1.0):
                 self.integral = 1.0
-            elif(self.integral > 1.0):
-                self.integral = 1.0
+            elif(self.integral < -1.0):
+                self.integral = -1.0
+
+
+            self.get_logger().info(f"Integral {self.integral}")
 
 
         #determine the speed output
