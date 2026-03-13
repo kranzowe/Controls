@@ -103,7 +103,7 @@ class SimpleController(Node):
         self.prev_stamps = self.stamps
 
         #set the state from the message
-        self.states = [msg.data, 0.0]
+        self.states = np.array([msg.data, 0.0])
 
         #stamp the data
         current_time = self.get_ros_time_as_double()
@@ -116,7 +116,7 @@ class SimpleController(Node):
         self.prev_stamps = self.stamps
 
         #set the state from the message
-        self.states = [msg.linear.x, msg.angular.z]
+        self.states =np.array([msg.linear.x, msg.angular.z])
 
         #stamp the data
         current_time = self.get_ros_time_as_double()
