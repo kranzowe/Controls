@@ -53,7 +53,7 @@ class SimpleController(Node):
         self.declare_parameter("dist_d_gain", self.dist_d_gain)
         self.declare_parameter("angle_i_gain", self.angle_i_gain)
         self.declare_parameter("angle_p_gain", self.angle_p_gain)
-        self.declare_parameter("angled_gain", self.angle_d_gain)
+        self.declare_parameter("angle_d_gain", self.angle_d_gain)
 
         self.control_timer = self.create_timer(1/self.control_freq, self.tic_control)
 
