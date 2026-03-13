@@ -20,7 +20,7 @@ class SimpleController(Node):
     dist_d_gain = 0.0
 
     angle_i_gain = 0.0
-    angle_p_gain = 0.5
+    angle_p_gain = 5.0
     angle_d_gain = 0.0
 
     #setpoint
@@ -54,6 +54,7 @@ class SimpleController(Node):
         self.declare_parameter("angle_i_gain", self.angle_i_gain)
         self.declare_parameter("angle_p_gain", self.angle_p_gain)
         self.declare_parameter("angle_d_gain", self.angle_d_gain)
+        self.declare_parameter("dist_setpoint", self.setpoint[0])
 
         self.control_timer = self.create_timer(1/self.control_freq, self.tic_control)
 
@@ -148,6 +149,9 @@ class SimpleController(Node):
         self.angle_i_gain = self.get_parameter("angle_i_gain").value
         self.angle_p_gain = self.get_parameter("angle_p_gain").value
         self.angle_d_gain = self.get_parameter("angle_d_gain").value
+
+        self.setpoint[0] = self.get_parameter("dist_setpoint").value
+
 
         #make an necessary updates
         if not (self.control_freq == prev_control_freq):
