@@ -15,8 +15,8 @@ class SimpleController(Node):
     #set default values
     control_freq = 30
 
-    dist_i_gain = 0.0
-    dist_p_gain = 0.5
+    dist_i_gain = 0.25
+    dist_p_gain = 0.3
     dist_d_gain = 0.0
 
     angle_i_gain = 0.0
@@ -85,11 +85,6 @@ class SimpleController(Node):
                 self.integral[0] = 0
             elif(state_error[0] < -.35):
                 self.integral[0] = 0
-
-            if(self.integral[0] > 1.0):
-                self.integral[0] = 1.0
-            elif(self.integral[0] < -1.0):
-                self.integral[0] = -1.0
 
 
             self.get_logger().info(f"Integral {self.integral}")
