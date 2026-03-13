@@ -44,7 +44,7 @@ class SimpleController(Node):
 
         #sub to the sensor data
         self.create_subscription(Float32, "/ld_distance", self.wall_dist_cb, 10)
-        self.create_subscription(Twist, "/paper_data", self.paper_data_cb, 10)
+        self.create_subscription(Twist, "/control_target", self.paper_data_cb, 10)
 
         #declare the ros2 parameters
         self.declare_parameter("control_freq", self.control_freq)
