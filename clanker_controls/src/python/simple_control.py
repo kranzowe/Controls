@@ -15,8 +15,8 @@ class SimpleController(Node):
     #set default values
     control_freq = 30
 
-    dist_i_gain = 0.25
-    dist_p_gain = 0.3
+    dist_i_gain = 0.0
+    dist_p_gain = 0.5
     dist_d_gain = 0.0
 
     angle_i_gain = 0.0
@@ -164,6 +164,10 @@ class SimpleController(Node):
         self.angle_d_gain = self.get_parameter("angle_d_gain").value
 
         self.setpoint[0] = self.get_parameter("dist_setpoint").value
+
+        self.min_speed = self.get_parameter("min_speed").value
+        self.position_deadband = self.get_parameter("position_deadband").value
+        
 
 
         #make an necessary updates
