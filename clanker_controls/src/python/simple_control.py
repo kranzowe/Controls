@@ -23,6 +23,11 @@ class SimpleController(Node):
     angle_p_gain = 5.0
     angle_d_gain = 0.0
 
+    # add a lil deadband
+    min_speed = 0.15
+    position_deadband = 0.05 # if 5cm away we cut it for safety as i test
+    #TODO remove above if its working fine
+
     #setpoint
     setpoint = np.array([1.0, 0.0])
 
@@ -55,6 +60,8 @@ class SimpleController(Node):
         self.declare_parameter("angle_p_gain", self.angle_p_gain)
         self.declare_parameter("angle_d_gain", self.angle_d_gain)
         self.declare_parameter("dist_setpoint", self.setpoint[0])
+        self.declare_parameter("min_speed", self.min_speed)
+        self.declare_parameter("position_deadband", self.position_deadband)
 
         self.control_timer = self.create_timer(1/self.control_freq, self.tic_control)
 
@@ -82,14 +89,20 @@ class SimpleController(Node):
         if(self.previous_tic_stamp > 0):
             self.integral += (tic_time - self.previous_tic_stamp) * state_error
 
-            if(state_error[0] > .35):
+            if(state_error[0] > .75):
                 self.integral[0] = 0
-            elif(state_error[0] < -.35):
+            elif(state_error[0] < -.75):
                 self.integral[0] = 0
 
 
         #determine the speed output
         speed = self.dist_p_gain * state_error[0] + self.dist_i_gain * self.integral[0] + self.dist_d_gain * state_error_derivatives[0]
+
+        # deadband controller 
+        if abs(state_error[0] < self.position_deadband):
+            speed = 0.0
+        elif abs(speed) < self.min_speed:
+            speed = np.sign(speed) * self.min_speed
 
         anglular_rate = self.angle_p_gain * state_error[1] + self.angle_i_gain * self.integral[1] + self.angle_d_gain * state_error_derivatives[1]
 
