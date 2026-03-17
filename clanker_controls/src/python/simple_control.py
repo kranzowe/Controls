@@ -99,7 +99,7 @@ class SimpleController(Node):
         speed = self.dist_p_gain * state_error[0] + self.dist_i_gain * self.integral[0] + self.dist_d_gain * state_error_derivatives[0]
 
         # deadband controller 
-        if abs(state_error[0] < self.position_deadband):
+        if abs(state_error[0]) < self.position_deadband:
             speed = 0.0
         elif abs(speed) < self.min_speed:
             speed = np.sign(speed) * self.min_speed
