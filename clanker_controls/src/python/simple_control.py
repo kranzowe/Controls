@@ -17,14 +17,14 @@ class SimpleController(Node):
 
     dist_i_gain = 0.0
     dist_p_gain = 0.5
-    dist_d_gain = 0.0
+    dist_d_gain = 0.15
 
     angle_i_gain = 0.0
     angle_p_gain = 5.0
     angle_d_gain = 0.0
 
     # add a lil deadband
-    min_speed = 0.15
+    min_speed = 0.24
     position_deadband = 0.05 # if 5cm away we cut it for safety as i test
     #TODO remove above if its working fine
 
