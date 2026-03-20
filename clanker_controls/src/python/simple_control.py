@@ -86,8 +86,8 @@ class SimpleController(Node):
         if(np.sum(np.where(self.stamps < tic_time - self.stale_time))):
 
             msg = Twist()
-            msg.linear.x = 0
-            msg.angular.z = 0
+            msg.linear.x = 0.0
+            msg.angular.z = 0.0
 
             self.command_pub.publish(msg)
 
