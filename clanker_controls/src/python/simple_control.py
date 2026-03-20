@@ -83,7 +83,7 @@ class SimpleController(Node):
         tic_time = self.get_ros_time_as_double()
 
         #if the data is stale...
-        if(np.sum(np.where(self.stamps < tic_time - self.stale_time))):
+        if(np.sum(np.where(self.stamps < tic_time - self.stale_time)) > 0):
 
             msg = Twist()
             msg.linear.x = 0.0
