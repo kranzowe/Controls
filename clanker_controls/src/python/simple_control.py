@@ -91,6 +91,8 @@ class SimpleController(Node):
 
             self.command_pub.publish(msg)
 
+            return
+
         #take derivative of states
         state_error_derivatives = (self.states - self.prev_states) / (self.stamps - self.prev_stamps)
 
