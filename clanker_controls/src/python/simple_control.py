@@ -91,6 +91,8 @@ class SimpleController(Node):
 
             self.command_pub.publish(msg)
 
+            self.get_logger().info("Stale")
+
             return
 
         #take derivative of states
