@@ -28,6 +28,9 @@ class SimpleController(Node):
     position_deadband = 0.05 # if 5cm away we cut it for safety as i test
     #TODO remove above if its working fine
 
+    #add staling
+    stale_time = 0.25
+
     #setpoint
     setpoint = np.array([1.0, 0.0])
 
@@ -79,6 +82,15 @@ class SimpleController(Node):
         #get the current time
         tic_time = self.get_ros_time_as_double()
 
+        #if the data is stale...
+        if(np.sum(np.where(self.stamps < tic_time - self.stale_time))):
+
+            msg = Twist()
+            msg.linear.x = 0
+            msg.angular.z = 0
+
+            self.command_pub.publish(msg)
+
         #take derivative of states
         state_error_derivatives = (self.states - self.prev_states) / (self.stamps - self.prev_stamps)
 
@@ -105,8 +117,6 @@ class SimpleController(Node):
             speed = np.sign(speed) * self.min_speed
 
         anglular_rate = self.angle_p_gain * state_error[1] + self.angle_i_gain * self.integral[1] + self.angle_d_gain * state_error_derivatives[1]
-
-        self.get_logger().info(f"Error {state_error[1]} state {self.states[1]}")
 
         self.previous_tic_stamp = tic_time
 
