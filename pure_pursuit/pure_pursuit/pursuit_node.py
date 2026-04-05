@@ -38,10 +38,20 @@ class PursuitNode(Node):
         # Command publisher
         self.command_pub = self.create_publisher(Twist, "/cmd_vel", 10)
 
-        self.params = PurePursuitParams(
-            lookahead_distance=3.0,
-            wheelbase=0.17,
-            desired_vel=2.0)
+        # How far ahead on the path to target (m)
+        self.declare_parameter("lookahead_distance", 1.0)
+        # Range near vehicle (m) to designate waypoints as "visited" and remove from consideration
+        # Ideally the distance between lookahead_distance and pruning distance should be greater
+        # than the distance between waypoints to prevent snapping.
+        self.declare_parameter("pruning_distance", 0.2)
+        # Velocity to target (m/s).
+        self.declare_parameter("desired_vel", 1.0)
+        # Vehicle property for steering mechanics (m)
+        self.declare_parameter("wheelbase", 0.171)
+        # Proportional velocity gain
+        self.declare_parameter("Kp_v", 1.0)
+        # Proportional steering gain
+        self.declare_parameter("Kp_theta", 1.0)
 
     def state_est_callback(self, state_msg):
         self.current_pose = [
@@ -63,11 +73,17 @@ class PursuitNode(Node):
         self.get_logger().info(f"Received new path with {len(waypoints)}")
         wp_idx = 0
         while self.path_num == path_id:
-            control_input, _, wp_idx_inc = pure_pursuit(waypoints[wp_idx:], self.current_pose, self.params)
-            wp_idx += wp_idx_inc
+            params = PurePursuitParams(
+                lookahead_distance=self.get_parameter('lookahead_distance').value,
+                wheelbase=self.get_parameter('wheelbase').value,
+                desired_vel=self.get_parameter('desired_vel').value,
+                pruning_distance=self.get_parameter('pruning_distance').value
+            )
+            control_input, _, wp_prune_idx = pure_pursuit(waypoints[wp_idx:], self.current_pose, params)
+            wp_idx += wp_prune_idx
             cmd_msg = Twist()
-            cmd_msg.linear.x = control_input[0]
-            cmd_msg.angular.z = control_input[1]
+            cmd_msg.linear.x = control_input[0] * self.get_parameter('Kp_v').value
+            cmd_msg.angular.z = control_input[1] * self.get_parameter('Kp_theta').value
             self.command_pub.publish(cmd_msg)
             rclpy.spin_once(self, timeout_sec=0.1)
 

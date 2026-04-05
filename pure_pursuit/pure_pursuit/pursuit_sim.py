@@ -8,7 +8,8 @@ from matplotlib.animation import FuncAnimation
 
 import numpy as np
 import pure_pursuit
-
+import os
+from pathlib import Path
 
 def vehicle_dynamics(state, control, wheelbase, dt):
     def dx_dt(t, state, control):
@@ -29,12 +30,14 @@ def vehicle_dynamics(state, control, wheelbase, dt):
     return next_state
 
 if __name__ == "__main__":
-    num_points = 20
+    num_points = 40
     radius = 10
     center = (0, 0)
     x = np.linspace(0, 2*np.pi * 10, num_points)
-    y = np.cos(x/5) - x/10
-    psi = -np.sin(x/5)/5 - 1/10
+    slope = np.random.rand() - 0.5
+    y = np.cos(x/5) - slope * x
+    y[:10] += 6.0
+    psi = -np.sin(x/5)/5 - slope
 
     waypoints = np.column_stack((x, y, psi))
     initial_state = [1, 1, 0, 0]  # x, y, theta, v
@@ -43,8 +46,9 @@ if __name__ == "__main__":
 
     params = pure_pursuit.PurePursuitParams(
         lookahead_distance=3.0,
+        pruning_distance=0.3,
         wheelbase=0.17,
-        desired_vel=2.0
+        desired_vel=3.0
     )
     state_history = np.array(initial_state)
     target_history = np.array(initial_state[:3])
@@ -52,12 +56,14 @@ if __name__ == "__main__":
     current_state = initial_state
 
     time = 0.0
+    wp_idx = 0
     while time < max_time:
-        control_input, lookahead_point, _ = pure_pursuit.pure_pursuit(waypoints, current_state, params)
+        control_input, lookahead_point, wp_idx_inc = pure_pursuit.pure_pursuit(waypoints[wp_idx:], current_state, params)
         next_state = vehicle_dynamics(current_state, control_input, params.wheelbase, dt)
         state_history = np.vstack((state_history, next_state))
         target_history = np.vstack((target_history, lookahead_point))
         current_state = next_state
+        wp_idx += wp_idx_inc
         time += dt
 
     fig, ax = plt.subplots()
@@ -80,5 +86,8 @@ if __name__ == "__main__":
     plt.ylabel("Y")
     plt.legend()
     plt.grid()
-    ani.save('animation.gif', writer='pillow', fps=10)
-    # plt.show()
+    dir = Path(__file__).parent
+    gif_path = dir / 'animation.gif'
+    if gif_path.is_file():
+        os.remove(gif_path)
+    ani.save(gif_path, writer='pillow', fps=10)

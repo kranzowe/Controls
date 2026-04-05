@@ -5,22 +5,32 @@ from dataclasses import dataclass
 @dataclass
 class PurePursuitParams:
     lookahead_distance: float
+    pruning_distance: float
     wheelbase: float
     desired_vel: float
 
 def pure_pursuit(waypoints, current_state, params: PurePursuitParams):
+    """Follow a series of waypoints, looking ahead to a specified distance.
+    Waypoints close to the vehicle are considered "visited" and suggested for pruning.
+    If there are no waypoints left to visit, stop moving.
+    """
     if not len(waypoints):
         # Stop moving if no waypoints are provided
-        control_input = [-current_state[0], 0]
+        control_input = [-current_state[3], 0]
         return control_input, current_state[:3], 0
- 
+
     lookahead_point = []
     wp_idx = -1
+    wp_prune_idx = 0
     min_dist = float('inf')
     min_dist_idx = -1
-    for i in range(len(waypoints) - 1):
+    for i in range(len(waypoints)):
         wp = waypoints[i]
-        dist = np.linalg.norm([wp[0] - current_state[0], wp[1] - current_state[1]])
+        vec_to_wp = np.array([wp[0] - current_state[0], wp[1] - current_state[1]])
+        dist = np.linalg.norm(vec_to_wp)
+
+        if dist < params.pruning_distance:
+            wp_prune_idx = i + 1
         if dist < params.lookahead_distance:
             wp_idx = i
         elif wp_idx != -1:
@@ -29,10 +39,11 @@ def pure_pursuit(waypoints, current_state, params: PurePursuitParams):
             min_dist = dist
             min_dist_idx = i
     if wp_idx == -1:
-        lookahead_point = waypoints[min_dist_idx + 1]
+        lookahead_point = waypoints[min_dist_idx]
+    elif wp_idx < len(waypoints)-1:
+        lookahead_point = max_intersect_segment_circle(waypoints[wp_idx], waypoints[wp_idx + 1], current_state[:2], params.lookahead_distance)
     else:
-        lookahead_point = waypoints[wp_idx + 1]
-    lookahead_point = max_intersect_segment_circle(waypoints[wp_idx], waypoints[wp_idx + 1], current_state[:3], params.lookahead_distance)
+        lookahead_point = waypoints[-1]
     
     # Compute the control input to steer towards the lookahead point
     dx = lookahead_point[0] - current_state[0]
@@ -45,13 +56,20 @@ def pure_pursuit(waypoints, current_state, params: PurePursuitParams):
     vel_input = params.desired_vel - current_state[3]
     control_input = [vel_input, delta]  # [velocity, steering angle]
     
-    return control_input, lookahead_point, wp_idx
+    return control_input, lookahead_point, wp_prune_idx
 
 
 def max_intersect_segment_circle(p1full, p2full, center, radius):
+    """Analytically solve for where a line segment intersects a circle.
+    If there are 2 intersections, take the one closest to the 2nd endpoint (p2full).
+    """
     p1 = np.array(p1full)[:2]
     p2 = np.array(p2full)[:2]
     center = np.array(center)[:2]
+    if np.linalg.norm(p1 - center) >= radius:
+        return p1full
+    if np.linalg.norm(p2 - center) <= radius:
+        return p2full
     
     # Direction vector of the segment
     dfull = p2full - p1full
@@ -65,11 +83,7 @@ def max_intersect_segment_circle(p1full, p2full, center, radius):
     c = np.dot(f, f) - radius**2
     
     discriminant = b**2 - 4*a*c
-    
-    if discriminant < 0:
-        # No intersection
-        return []
-    
+
     # Potential t values for the full line
     discriminant = np.sqrt(discriminant)
     t1 = (-b - discriminant) / (2 * a)
