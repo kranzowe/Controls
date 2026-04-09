@@ -11,7 +11,7 @@ import pure_pursuit
 import os
 from pathlib import Path
 
-def vehicle_dynamics(state, control, wheelbase, dt):
+def vehicle_dynamics_a(state, control, wheelbase, dt):
     def dx_dt(t, state, control):
         x, y, theta, v = state
         udv, delta = control
@@ -27,6 +27,22 @@ def vehicle_dynamics(state, control, wheelbase, dt):
     sol = integrate.solve_ivp(dx_dt, [0, dt], state, args=(control,), method='RK45')
     next_state = sol.y[:, -1]
     next_state[2] = (next_state[2] + np.pi) % (2 * np.pi) - np.pi
+    return next_state
+
+def vehicle_dynamics_v(state, control, dt):
+    def dx_dt(t, state, control):
+        x, y, theta, _ = state
+        v, w = control
+
+        dx = v * np.cos(theta)
+        dy = v * np.sin(theta)
+
+        return [dx, dy, w, 0]
+
+    sol = integrate.solve_ivp(dx_dt, [0, dt], state, args=(control,), method='RK45')
+    next_state = sol.y[:, -1]
+    next_state[2] = (next_state[2] + np.pi) % (2 * np.pi) - np.pi
+    next_state[3] = control[0]
     return next_state
 
 if __name__ == "__main__":
@@ -48,7 +64,8 @@ if __name__ == "__main__":
         lookahead_distance=3.0,
         pruning_distance=0.3,
         wheelbase=0.17,
-        desired_vel=3.0
+        desired_vel=3.0,
+        mode="velocity"
     )
     state_history = np.array(initial_state)
     target_history = np.array(initial_state[:3])
@@ -59,7 +76,10 @@ if __name__ == "__main__":
     wp_idx = 0
     while time < max_time:
         control_input, lookahead_point, wp_idx_inc = pure_pursuit.pure_pursuit(waypoints[wp_idx:], current_state, params)
-        next_state = vehicle_dynamics(current_state, control_input, params.wheelbase, dt)
+        if params.mode == "velocity":
+            next_state = vehicle_dynamics_v(current_state, control_input, dt)
+        else:
+            next_state = vehicle_dynamics_a(current_state, control_input, params.wheelbase, dt)
         state_history = np.vstack((state_history, next_state))
         target_history = np.vstack((target_history, lookahead_point))
         current_state = next_state
@@ -91,3 +111,10 @@ if __name__ == "__main__":
     if gif_path.is_file():
         os.remove(gif_path)
     ani.save(gif_path, writer='pillow', fps=10)
+
+
+
+
+
+
+#

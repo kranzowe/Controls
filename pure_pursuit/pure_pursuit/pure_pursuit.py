@@ -8,6 +8,7 @@ class PurePursuitParams:
     pruning_distance: float
     wheelbase: float
     desired_vel: float
+    mode: str = "velocity"  # "velocity" or "acceleration"
 
 def pure_pursuit(waypoints, current_state, params: PurePursuitParams):
     """Follow a series of waypoints, looking ahead to a specified distance.
@@ -16,7 +17,13 @@ def pure_pursuit(waypoints, current_state, params: PurePursuitParams):
     """
     if not len(waypoints):
         # Stop moving if no waypoints are provided
-        control_input = [-current_state[3], 0]
+        match params.mode:
+            case "velocity":
+                control_input = [0, 0]
+            case "acceleration":
+                control_input = [-current_state[3], 0]
+            case _:
+                raise ValueError(f"Invalid control mode: {params.mode}")
         return control_input, current_state[:3], 0
 
     lookahead_point = []
@@ -51,11 +58,18 @@ def pure_pursuit(waypoints, current_state, params: PurePursuitParams):
     heading_to_lp = np.arctan2(dy, dx)
 
     curvature = 2 * (np.sin(heading_to_lp - current_state[2]))/params.lookahead_distance
-    delta = np.arctan(curvature * params.wheelbase)
 
-    vel_input = params.desired_vel - current_state[3]
-    control_input = [vel_input, delta]  # [velocity, steering angle]
-    
+    match params.mode:
+        case "velocity":
+            turn_rate = curvature * current_state[3]
+            control_input = [params.desired_vel, turn_rate]
+        case "acceleration":
+            vel_input = params.desired_vel - current_state[3]
+            delta = np.arctan(curvature * params.wheelbase)
+            control_input = [vel_input, delta]
+        case _:
+            raise ValueError(f"Invalid control mode: {params.mode}")
+
     return control_input, lookahead_point, wp_prune_idx
 
 

@@ -27,13 +27,19 @@ class PursuitNode(Node):
         self.path_lock = threading.Lock()
         self.path_num = 0
         
-        # State subscription
-        self.state_sub = self.create_subscription(
+        # Pose subscription
+        self.pose_sub = self.create_subscription(
             Pose2D,
-            '/state_estimation',
-            self.state_est_callback,
+            '/current_pose',
+            self.pose_callback,
             10)
-        self.current_pose = Pose2D()
+         # Velocity subscription
+        self.vel_sub = self.create_subscription(
+            Pose2D,
+            '/ol_rates',
+            self.vel_callback,
+            10)
+        self.current_state = np.zeros(4)  # x, y, theta, vel
 
         # Command publisher
         self.command_pub = self.create_publisher(Twist, "/cmd_vel", 10)
@@ -53,10 +59,13 @@ class PursuitNode(Node):
         # Proportional steering gain
         self.declare_parameter("Kp_theta", 1.0)
 
-    def state_est_callback(self, state_msg):
-        self.current_pose = [
-            state_msg.x, state_msg.y, state_msg.theta, state_msg.v
-        ]
+    def pose_callback(self, state_msg):
+        self.current_state[0] = state_msg.x
+        self.current_state[1] = state_msg.y
+        self.current_state[2] = state_msg.theta
+
+    def vel_callback(self, vel_msg):
+        self.current_state[3] = vel_msg.linear.x
 
     def path_callback(self, path_msg):
         # Zero controls when new path is loaded.
