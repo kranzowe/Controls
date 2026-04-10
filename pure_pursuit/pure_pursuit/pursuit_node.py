@@ -23,7 +23,7 @@ OL_MODEL_SUBPATH = "resource/ol_data.yaml"
 class PursuitNode(Node):
 
     def __init__(self):
-        super().__init__('targeting')
+        super().__init__('pure_pursuit')
         # Path subscription
         self.path_callback_group = ReentrantCallbackGroup()
         self.path_sub = self.create_subscription(
