@@ -1,14 +1,20 @@
 import numpy as np
 import numpy as np
 from dataclasses import dataclass
+from types import SimpleNamespace
+
+import control
 
 @dataclass
 class PurePursuitParams:
+    ol_model: SimpleNamespace
     lookahead_distance: float
     pruning_distance: float
     wheelbase: float
     desired_vel: float
     mode: str = "velocity"  # "velocity" or "acceleration"
+    Kp_v: float = 1.0
+    Kp_theta: float = 1.0
 
 def pure_pursuit(waypoints, current_state, params: PurePursuitParams):
     """Follow a series of waypoints, looking ahead to a specified distance.
@@ -59,6 +65,7 @@ def pure_pursuit(waypoints, current_state, params: PurePursuitParams):
 
     curvature = 2 * (np.sin(heading_to_lp - current_state[2]))/params.lookahead_distance
 
+    control_input = [0, 0]
     match params.mode:
         case "velocity":
             turn_rate = curvature * current_state[3]
@@ -67,6 +74,10 @@ def pure_pursuit(waypoints, current_state, params: PurePursuitParams):
             vel_input = params.desired_vel - current_state[3]
             delta = np.arctan(curvature * params.wheelbase)
             control_input = [vel_input, delta]
+        case "pwm":
+            vel_input = params.desired_vel + params.Kp_v * (params.desired_vel - current_state[3])
+            turn_radius = 1/curvature if curvature != 0 else 99999
+            control_input = [control.get_pwm_vel_from_vel(params.ol_model, vel_input), control.get_pwm_steer_from_turn_radius(params.ol_model, turn_radius)]
         case _:
             raise ValueError(f"Invalid control mode: {params.mode}")
 
@@ -107,4 +118,4 @@ def max_intersect_segment_circle(p1full, p2full, center, radius):
     for t in [t1, t2]:
         if 0 <= t <= 1:
             points.append(p1full + t * dfull)
-    return min(points, key=lambda p: np.linalg.norm(p[:2] - p2)) if points else None
+    return min(points, key=lambda p: np.linalg.norm(p[:2] - p2)) if points else []

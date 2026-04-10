@@ -9,8 +9,16 @@ from nav2d_msgs.msg import Path2D
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.executors import ExternalShutdownException
+import os
+import yaml
+from types import SimpleNamespace
+
+
+from ament_index_python import get_package_share_directory
 
 from pure_pursuit import PurePursuitParams, pure_pursuit
+
+OL_MODEL_SUBPATH = "resource/ol_data.yaml"
 
 class PursuitNode(Node):
 
@@ -59,6 +67,8 @@ class PursuitNode(Node):
         # Proportional steering gain
         self.declare_parameter("Kp_theta", 1.0)
 
+        self.load_ol_model()
+
     def pose_callback(self, state_msg):
         self.current_state[0] = state_msg.x
         self.current_state[1] = state_msg.y
@@ -86,15 +96,44 @@ class PursuitNode(Node):
                 lookahead_distance=self.get_parameter('lookahead_distance').value,
                 wheelbase=self.get_parameter('wheelbase').value,
                 desired_vel=self.get_parameter('desired_vel').value,
-                pruning_distance=self.get_parameter('pruning_distance').value
+                pruning_distance=self.get_parameter('pruning_distance').value,
+                Kp_v=self.get_parameter('Kp_v').value,
+                Kp_theta=self.get_parameter('Kp_theta').value,
+                ol_model=self.ol_model
             )
             control_input, _, wp_prune_idx = pure_pursuit(waypoints[wp_idx:], self.current_pose, params)
             wp_idx += wp_prune_idx
             cmd_msg = Twist()
-            cmd_msg.linear.x = control_input[0] * self.get_parameter('Kp_v').value
-            cmd_msg.angular.z = control_input[1] * self.get_parameter('Kp_theta').value
+            cmd_msg.linear.x = control_input[0]
+            cmd_msg.angular.z = control_input[1]
             self.command_pub.publish(cmd_msg)
             rclpy.spin_once(self, timeout_sec=0.1)
+    
+    def load_ol_model(self):
+
+        #get the robo rover share directory
+        robo_share_dir = get_package_share_directory("robo_rover")
+        ol_path = os.path.join(robo_share_dir, OL_MODEL_SUBPATH)
+
+        with open(ol_path, "r") as file:
+            try:
+                model_raw = yaml.safe_load(file)
+
+            except:
+                self.get_logger().error("Failed to open ol model!")
+                return
+            
+        self.ol_model = SimpleNamespace()
+        self.ol_model.velocity = SimpleNamespace()
+        self.ol_model.steering = SimpleNamespace()
+        self.ol_model.time_constant = model_raw["time_constant"]
+        self.ol_model.velocity.ol_velocities = np.array(model_raw["velocity"]["steady_state_velocity"])
+        self.ol_model.velocity.pwms = np.array(model_raw["velocity"]["pwm_values"])
+        self.ol_model.steering.ol_radius = np.array(model_raw["angular"]["turn_radius_values"])
+        self.ol_model.steering.pwms = np.array(model_raw["angular"]["pwm_values"])
+        self.ol_model.steering.zero_idx = np.argmax(np.abs(self.ol_model.steering.ol_radius))
+
+        self.ol_model_loaded = True
 
 
 def main(args=None):
