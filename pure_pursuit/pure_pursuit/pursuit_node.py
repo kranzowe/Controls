@@ -79,9 +79,6 @@ class PursuitNode(Node):
 
     def path_callback(self, path_msg):
         # Zero controls when new path is loaded.
-        command = Twist()
-        self.command_pub.publish(command)
-
         path_id = None
         with self.path_lock:
             self.path_num = (self.path_num + 1) % 100
