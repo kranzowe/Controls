@@ -5,7 +5,7 @@ import threading
 
 from geometry_msgs.msg import Pose2D
 from geometry_msgs.msg import Twist
-from nav2d_msgs.msg import Path2D
+from nav_2d_msgs.msg import Path2D
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.executors import ExternalShutdownException
