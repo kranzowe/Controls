@@ -9,7 +9,9 @@ from nav_2d_msgs.msg import Path2D
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.executors import ExternalShutdownException
+from ament_index_python import get_package_share_directory
 import os
+import csv
 import yaml
 from types import SimpleNamespace
 
@@ -52,6 +54,14 @@ class PursuitNode(Node):
         # Command publisher
         self.command_pub = self.create_publisher(Twist, "/cmd_vel", 10)
 
+        # for waypoints from a csv
+        self.loaded_waypoints = SimpleNamespace()
+        self.loaded_waypoints.ready = False
+
+        self.waypoints = []
+        self.wp_idx = 0
+
+
         # How far ahead on the path to target (m)
         self.declare_parameter("lookahead_distance", 1.0)
         # Range near vehicle (m) to designate waypoints as "visited" and remove from consideration
@@ -67,8 +77,56 @@ class PursuitNode(Node):
         # Proportional steering gain
         self.declare_parameter("Kp_theta", 1.0)
 
+        #declare parameters to load waypoints
+        self.declare_parameter("load_waypoints", True)
+        load_waypoints = self.get_parameter("load_waypoints").value
+        self.declare_parameter("waypoints_file", "test_waypoints")
+
         self.load_ol_model()
 
+        if(load_waypoints):
+            self.load_waypoint_csv()
+
+        #callback to reload params
+        self.create_timer(1.0, self.param_cb_timer)
+        self.create_timer(0.3, self.control_cb)
+
+
+    def load_waypoint_csv(self):
+
+        #try to load the file from the path
+        share_path = get_package_share_directory("clanker_controls")
+        filename = self.get_parameter("waypoints_file").value
+
+        waypoints_filepath = os.path.join(share_path, "waypoints", filename)
+
+        self.loaded_waypoints.x_pos = []
+        self.loaded_waypoints.y_pos = []
+        self.loaded_waypoints.theta = []
+
+        #read in the csv
+        with open(waypoints_filepath, mode='r', newline='') as file:
+            reader = csv.reader(file)
+            for row in reader:
+                split = row.split()
+
+                #check to make sure there is enough data
+                if(len(split) < 3):
+                    self.get_logger().warn("Waypoint data is invalid...")
+                    
+                    continue
+
+                self.loaded_waypoints.x_pos.append(split[0])
+                self.loaded_waypoints.y_pos.append(split[1])
+                self.loaded_waypoints.theta.append(split[2])
+
+        for idx in range(0, self.loaded_waypoints.x_pos):
+            self.waypoints.append([self.loaded_waypoints.x_pos[idx]])
+            self.waypoints.append([self.loaded_waypoints.y_pos[idx]])
+            self.waypoints.append([self.loaded_waypoints.theta[idx]])
+
+        self.loaded_waypoints.ready = True
+            
     def pose_callback(self, state_msg):
         self.current_state[0] = state_msg.x
         self.current_state[1] = state_msg.y
@@ -78,33 +136,35 @@ class PursuitNode(Node):
         self.current_state[3] = vel_msg.linear.x
 
     def path_callback(self, path_msg):
-        # Zero controls when new path is loaded.
-        path_id = None
-        with self.path_lock:
-            self.path_num = (self.path_num + 1) % 100
-            path_id = self.path_num
+        pass
+
+        # # Zero controls when new path is loaded.
+        # path_id = None
+        # with self.path_lock:
+        #     self.path_num = (self.path_num + 1) % 100
+        #     path_id = self.path_num
         
-        poses = path_msg.poses
-        waypoints = [[pose.x, pose.y, pose.theta] for pose in poses]
-        self.get_logger().info(f"Received new path with {len(waypoints)}")
-        wp_idx = 0
-        while self.path_num == path_id:
-            params = PurePursuitParams(
-                lookahead_distance=self.get_parameter('lookahead_distance').value,
-                wheelbase=self.get_parameter('wheelbase').value,
-                desired_vel=self.get_parameter('desired_vel').value,
-                pruning_distance=self.get_parameter('pruning_distance').value,
-                Kp_v=self.get_parameter('Kp_v').value,
-                Kp_theta=self.get_parameter('Kp_theta').value,
-                ol_model=self.ol_model
-            )
-            control_input, _, wp_prune_idx = pure_pursuit(waypoints[wp_idx:], self.current_pose, params)
-            wp_idx += wp_prune_idx
-            cmd_msg = Twist()
-            cmd_msg.linear.x = control_input[0]
-            cmd_msg.angular.z = control_input[1]
-            self.command_pub.publish(cmd_msg)
-            rclpy.spin_once(self, timeout_sec=0.1)
+        # poses = path_msg.poses
+        # waypoints = [[pose.x, pose.y, pose.theta] for pose in poses]
+        # self.get_logger().info(f"Received new path with {len(waypoints)}")
+        # wp_idx = 0
+        # while self.path_num == path_id:
+        #     params = PurePursuitParams(
+        #         lookahead_distance=self.get_parameter('lookahead_distance').value,
+        #         wheelbase=self.get_parameter('wheelbase').value,
+        #         desired_vel=self.get_parameter('desired_vel').value,
+        #         pruning_distance=self.get_parameter('pruning_distance').value,
+        #         Kp_v=self.get_parameter('Kp_v').value,
+        #         Kp_theta=self.get_parameter('Kp_theta').value,
+        #         ol_model=self.ol_model
+        #     )
+        #     control_input, _, wp_prune_idx = pure_pursuit(waypoints[wp_idx:], self.current_pose, params)
+        #     wp_idx += wp_prune_idx
+        #     cmd_msg = Twist()
+        #     cmd_msg.linear.x = control_input[0]
+        #     cmd_msg.angular.z = control_input[1]
+        #     self.command_pub.publish(cmd_msg)
+        #     rclpy.spin_once(self, timeout_sec=0.1)
     
     def load_ol_model(self):
 
@@ -131,6 +191,32 @@ class PursuitNode(Node):
         self.ol_model.steering.zero_idx = np.argmax(np.abs(self.ol_model.steering.ol_radius))
 
         self.ol_model_loaded = True
+
+    def param_cb_timer(self):
+
+        self.pp_params = PurePursuitParams(
+            lookahead_distance=self.get_parameter('lookahead_distance').value,
+            wheelbase=self.get_parameter('wheelbase').value,
+            desired_vel=self.get_parameter('desired_vel').value,
+            pruning_distance=self.get_parameter('pruning_distance').value,
+            Kp_v=self.get_parameter('Kp_v').value,
+            Kp_theta=self.get_parameter('Kp_theta').value,
+            ol_model=self.ol_model
+        )
+
+    def control_cb(self):
+
+        if(self.loaded_waypoints.ready == True):
+
+            control_input, _, wp_prune_idx = pure_pursuit(self.waypoints[self.wp_idx:], self.current_pose, self.pp_params)
+            self.wp_idx += wp_prune_idx
+            cmd_msg = Twist()
+            cmd_msg.linear.x = control_input[0]
+            cmd_msg.angular.z = control_input[1]
+            self.command_pub.publish(cmd_msg)
+            rclpy.spin_once(self, timeout_sec=0.1)
+
+
 
 
 def main(args=None):
