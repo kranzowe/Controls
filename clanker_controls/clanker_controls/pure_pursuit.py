@@ -12,7 +12,7 @@ class PurePursuitParams:
     pruning_distance: float
     wheelbase: float
     desired_vel: float
-    mode: str = "velocity"  # "velocity" or "acceleration"
+    mode: str = "pwm"  # "velocity" or "acceleration"
     Kp_v: float = 1.0
     Kp_theta: float = 1.0
 
@@ -28,6 +28,8 @@ def pure_pursuit(waypoints, current_state, params: PurePursuitParams, logger=Non
                 control_input = [0, 0]
             case "acceleration":
                 control_input = [-current_state[3], 0]
+            case "pwm":
+                control_input = [1500, 1500]
             case _:
                 raise ValueError(f"Invalid control mode: {params.mode}")
         return control_input, current_state[:3], 0

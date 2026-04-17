@@ -7,6 +7,8 @@ import threading
 
 from geometry_msgs.msg import Pose2D
 from geometry_msgs.msg import Twist
+from visualization_msgs.msg import MarkerArray, Marker
+from std_msgs.msg import ColorRGBA
 from nav_2d_msgs.msg import Path2D
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
@@ -55,6 +57,7 @@ class PursuitNode(Node):
 
         # Command publisher
         self.command_pub = self.create_publisher(Twist, "/cmd_vel", 10)
+        self.viz_pub = self.create_publisher(MarkerArray, "waypoint_markers", 10)
 
         # for waypoints from a csv
         self.loaded_waypoints = SimpleNamespace()
@@ -81,6 +84,8 @@ class PursuitNode(Node):
         # Proportional steering gain
         self.declare_parameter("Kp_theta", 1.0)
 
+        self.declare_parameter("visualization_on", True)
+
         #declare parameters to load waypoints
         self.declare_parameter("load_waypoints", True)
         load_waypoints = self.get_parameter("load_waypoints").value
@@ -93,7 +98,7 @@ class PursuitNode(Node):
 
         #callback to reload params
         self.create_timer(1.0, self.param_cb_timer)
-        self.create_timer(0.3, self.control_cb)
+        self.create_timer(0.03, self.control_cb)
 
 
     def load_waypoint_csv(self):
@@ -127,6 +132,31 @@ class PursuitNode(Node):
         for idx in range(0, len(self.loaded_waypoints.x_pos)):
             waypoints.append(np.array([self.loaded_waypoints.x_pos[idx], self.loaded_waypoints.y_pos[idx], self.loaded_waypoints.theta[idx]]))
 
+
+        if(self.get_parameter("visualization_on").value):
+
+            color_msg = ColorRGBA()
+            color_msg.r = 1.0
+            color_msg.a = 1.0
+
+            msg = MarkerArray()
+            for point in waypoints:
+                marker_msg = Marker()
+                marker_msg.pose.position.x = point[0]
+                marker_msg.pose.position.y = point[1]
+                marker_msg.pose.position.z = 0.0
+
+                marker_msg.pose.orientation.z = point[2]
+
+                marker_msg.type = 0
+                marker_msg.action = 0
+                marker_msg.header.stamp = self.get_clock().now().to_msg()
+                marker_msg.header.frame_id = "map"
+                marker_msg.color = color_msg
+                
+                msg.markers.append(marker_msg)
+
+            self.viz_pub.publish(msg)
 
         self.waypoints = waypoints
 
@@ -211,7 +241,11 @@ class PursuitNode(Node):
 
     def control_cb(self):
 
+        self.get_logger().info(f"{self.pp_params}")
+
         if(self.loaded_waypoints.ready == True and (not self.pp_params is None)):
+
+            self.get_logger().info("hello")
 
             control_input, _, wp_prune_idx = pure_pursuit(self.waypoints[self.wp_idx:], self.current_state, self.pp_params, logger=self.get_logger())
             self.wp_idx += wp_prune_idx
@@ -219,7 +253,6 @@ class PursuitNode(Node):
             cmd_msg.linear.x = control_input[0]
             cmd_msg.angular.z = control_input[1]
             self.command_pub.publish(cmd_msg)
-            rclpy.spin_once(self, timeout_sec=0.1)
 
 
 
