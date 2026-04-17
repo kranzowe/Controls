@@ -7,7 +7,7 @@ import matplotlib.patches as patches
 from matplotlib.animation import FuncAnimation
 
 import numpy as np
-import pure_pursuit
+import Controls.clanker_controls.clanker_controls.pure_pursuit as pure_pursuit
 import os
 from pathlib import Path
 

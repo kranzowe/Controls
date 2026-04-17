@@ -16,7 +16,7 @@ class PurePursuitParams:
     Kp_v: float = 1.0
     Kp_theta: float = 1.0
 
-def pure_pursuit(waypoints, current_state, params: PurePursuitParams):
+def pure_pursuit(waypoints, current_state, params: PurePursuitParams, logger=None):
     """Follow a series of waypoints, looking ahead to a specified distance.
     Waypoints close to the vehicle are considered "visited" and suggested for pruning.
     If there are no waypoints left to visit, stop moving.
@@ -39,6 +39,10 @@ def pure_pursuit(waypoints, current_state, params: PurePursuitParams):
     min_dist_idx = -1
     for i in range(len(waypoints)):
         wp = waypoints[i]
+
+        # if(not node is None):
+        #     node.get_logger().warn(f"{type(wp[0])}, {type(current_state[0])}")
+
         vec_to_wp = np.array([wp[0] - current_state[0], wp[1] - current_state[1]])
         dist = np.linalg.norm(vec_to_wp)
 

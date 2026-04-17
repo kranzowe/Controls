@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import rclpy
 from rclpy.node import Node
 import numpy as np
@@ -18,7 +20,7 @@ from types import SimpleNamespace
 
 from ament_index_python import get_package_share_directory
 
-from pure_pursuit import PurePursuitParams, pure_pursuit
+from clanker_controls.pure_pursuit import PurePursuitParams, pure_pursuit
 
 OL_MODEL_SUBPATH = "resource/ol_data.yaml"
 
@@ -31,7 +33,7 @@ class PursuitNode(Node):
         self.path_sub = self.create_subscription(
             Path2D,
             '/pathfinder',
-            self.listener_callback,
+            self.path_callback,
             1,
             callback_group=self.path_callback_group)
         self.path_lock = threading.Lock()
@@ -58,6 +60,8 @@ class PursuitNode(Node):
         self.loaded_waypoints = SimpleNamespace()
         self.loaded_waypoints.ready = False
 
+        self.pp_params = None
+
         self.waypoints = []
         self.wp_idx = 0
 
@@ -80,7 +84,7 @@ class PursuitNode(Node):
         #declare parameters to load waypoints
         self.declare_parameter("load_waypoints", True)
         load_waypoints = self.get_parameter("load_waypoints").value
-        self.declare_parameter("waypoints_file", "test_waypoints")
+        self.declare_parameter("waypoints_file", "Course11_small_path.csv")
 
         self.load_ol_model()
 
@@ -108,22 +112,23 @@ class PursuitNode(Node):
         with open(waypoints_filepath, mode='r', newline='') as file:
             reader = csv.reader(file)
             for row in reader:
-                split = row.split()
 
                 #check to make sure there is enough data
-                if(len(split) < 3):
+                if(len(row) < 3):
                     self.get_logger().warn("Waypoint data is invalid...")
                     
                     continue
 
-                self.loaded_waypoints.x_pos.append(split[0])
-                self.loaded_waypoints.y_pos.append(split[1])
-                self.loaded_waypoints.theta.append(split[2])
+                self.loaded_waypoints.x_pos.append(float(row[0]))
+                self.loaded_waypoints.y_pos.append(float(row[1]))
+                self.loaded_waypoints.theta.append(float(row[2]))
 
-        for idx in range(0, self.loaded_waypoints.x_pos):
-            self.waypoints.append([self.loaded_waypoints.x_pos[idx]])
-            self.waypoints.append([self.loaded_waypoints.y_pos[idx]])
-            self.waypoints.append([self.loaded_waypoints.theta[idx]])
+        waypoints = []
+        for idx in range(0, len(self.loaded_waypoints.x_pos)):
+            waypoints.append(np.array([self.loaded_waypoints.x_pos[idx], self.loaded_waypoints.y_pos[idx], self.loaded_waypoints.theta[idx]]))
+
+
+        self.waypoints = waypoints
 
         self.loaded_waypoints.ready = True
             
@@ -206,9 +211,9 @@ class PursuitNode(Node):
 
     def control_cb(self):
 
-        if(self.loaded_waypoints.ready == True):
+        if(self.loaded_waypoints.ready == True and (not self.pp_params is None)):
 
-            control_input, _, wp_prune_idx = pure_pursuit(self.waypoints[self.wp_idx:], self.current_pose, self.pp_params)
+            control_input, _, wp_prune_idx = pure_pursuit(self.waypoints[self.wp_idx:], self.current_state, self.pp_params, logger=self.get_logger())
             self.wp_idx += wp_prune_idx
             cmd_msg = Twist()
             cmd_msg.linear.x = control_input[0]

@@ -11,6 +11,19 @@ find_package(ament_cmake REQUIRED)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
+file(GLOB WAYPOINT_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/way_path/*.csv)
+
+file(GLOB PYTHON ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/*.py)
+
+ament_python_install_package(${PROJECT_NAME})
+
+
+install(PROGRAMS ${WAYPOINT_PATHS}
+DESTINATION share/${PROJECT_NAME}/waypoints)
+
+install(PROGRAMS ${PYTHON}
+DESTINATION DESTINATION lib/${PROJECT_NAME})
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
