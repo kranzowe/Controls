@@ -9,6 +9,7 @@ from geometry_msgs.msg import Pose2D
 from geometry_msgs.msg import Twist
 from visualization_msgs.msg import MarkerArray, Marker
 from std_msgs.msg import ColorRGBA
+from rclpy.duration import Duration
 from nav_2d_msgs.msg import Path2D
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
@@ -16,8 +17,14 @@ from rclpy.executors import ExternalShutdownException
 from ament_index_python import get_package_share_directory
 import os
 import csv
+import math
 import yaml
 from types import SimpleNamespace
+
+from tf2_ros import TransformException
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
+from tf2_geometry_msgs import TransformStamped
 
 
 from ament_index_python import get_package_share_directory
@@ -25,6 +32,8 @@ from ament_index_python import get_package_share_directory
 from clanker_controls.pure_pursuit import PurePursuitParams, pure_pursuit
 
 OL_MODEL_SUBPATH = "resource/ol_data.yaml"
+
+TF_TIMEOUT = 0.1
 
 class PursuitNode(Node):
 
@@ -68,6 +77,8 @@ class PursuitNode(Node):
         self.waypoints = []
         self.wp_idx = 0
 
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
 
         # How far ahead on the path to target (m)
         self.declare_parameter("lookahead_distance", 1.0)
@@ -90,6 +101,9 @@ class PursuitNode(Node):
         self.declare_parameter("load_waypoints", True)
         load_waypoints = self.get_parameter("load_waypoints").value
         self.declare_parameter("waypoints_file", "Course11_small_path.csv")
+
+        self.declare_parameter("debug", False)
+        self.debug_prints = self.get_parameter("debug").value
 
         self.load_ol_model()
 
@@ -163,9 +177,12 @@ class PursuitNode(Node):
         self.loaded_waypoints.ready = True
             
     def pose_callback(self, state_msg):
-        self.current_state[0] = state_msg.x
-        self.current_state[1] = state_msg.y
-        self.current_state[2] = state_msg.theta
+
+        self.get_logger().warn("Interesting this is getting called, the pose should be broadcast over tf2, not published....")
+
+        # self.current_state[0] = state_msg.x
+        # self.current_state[1] = state_msg.y
+        # self.current_state[2] = state_msg.theta
 
     def vel_callback(self, vel_msg):
         self.current_state[3] = vel_msg.linear.x
@@ -239,23 +256,63 @@ class PursuitNode(Node):
             ol_model=self.ol_model
         )
 
+        self.debug_prints = self.get_parameter("debug").value
+
     def control_cb(self):
 
-        self.get_logger().info(f"{self.pp_params}")
 
         if(self.loaded_waypoints.ready == True and (not self.pp_params is None)):
 
-            self.get_logger().info("hello")
+            #must first determine the current state of the rover from tf2
 
-            control_input, _, wp_prune_idx = pure_pursuit(self.waypoints[self.wp_idx:], self.current_state, self.pp_params, logger=self.get_logger())
+            #get a transform 
+            transform : TransformStamped = self.lookup_tf_transform("base_link", "map")
+
+            #ensure a valid transform
+            if(transform is None):
+                return
+            
+            #convert to the yaw angle
+            yaw = self.get_yaw_from_quat(transform.transform.rotation.x, transform.transform.rotation.y, transform.transform.rotation.z, transform.transform.rotation.w)
+
+            #i believe this is the expected format
+            #you'll need to take a look at how I'm setting the velocity here... the topic which vinnie subs to (to get velocity) only is published in the pwm control mode of the rover, however that is only published in pwm mode...
+            #however slam def works better out of pwm mode... no good reason why but it does... so don;t change that
+            #may need to get creative here idk?
+            state = [transform.transform.translation.x, transform.transform.translation.y, yaw, self.current_state[3]]
+
+            if(self.debug_prints):
+                self.get_logger().info(f"Current state x: {state[0]}, y: {state[1]}, yaw: {state[2]}. Next waypoint x: {self.waypoints[self.wp_idx][0]}, y: {self.waypoints[self.wp_idx][1]}. Waypoint num {self.wp_idx}")
+            
+            #this is all og vinnie pure pursuit :) -> I think he tested this bit in the sim but very unsure
+            control_input, _, wp_prune_idx = pure_pursuit(self.waypoints[self.wp_idx:], state, self.pp_params, logger=self.get_logger())
             self.wp_idx += wp_prune_idx
             cmd_msg = Twist()
             cmd_msg.linear.x = control_input[0]
             cmd_msg.angular.z = control_input[1]
             self.command_pub.publish(cmd_msg)
 
+    def lookup_tf_transform(self, target_frame, source_frame):
+        try:
+            now = rclpy.time.Time()
 
+            #lookup the transform in the buffer
+            transform = self.tf_buffer.lookup_transform(target_frame, source_frame, now, timeout=Duration(seconds=TF_TIMEOUT, nanoseconds=0))
 
+            return transform
+
+        except TransformException as ex:
+
+            self.get_logger().warn(f"Cannot transform from {target_frame} to {source_frame} as the transform has not be published")
+
+        return None
+    
+    def get_yaw_from_quat(self, qx, qy, qz, qw):
+
+        #did it this way as to avoid having to install and additional package on the pi... hopefully doesn't bite 
+
+        return math.atan2(2 * (qw*qz + qx*qy), 1 - 2*(qy**2 + qz**2))
+        
 
 def main(args=None):
     rclpy.init(args=args)
