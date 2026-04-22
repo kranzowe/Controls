@@ -2,10 +2,12 @@ import rclpy
 from rclpy.node import Node
 import numpy as np
 import threading
+import asyncio
 
+from geometry_msgs.msg import PoseWithCovarianceStamped
 from geometry_msgs.msg import Pose2D
 from geometry_msgs.msg import Twist
-from nav_2d_msgs.msg import Path2D
+from nav_2d_msgs.msg import Path
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.executors import ExternalShutdownException
@@ -27,31 +29,16 @@ class PursuitNode(Node):
         # Path subscription
         self.path_callback_group = ReentrantCallbackGroup()
         self.path_sub = self.create_subscription(
-            Path2D,
-            '/pathfinder',
+            Path,
+            './waypoints',
             self.listener_callback,
             1,
             callback_group=self.path_callback_group)
         self.path_lock = threading.Lock()
         self.path_num = 0
         
-        # Pose subscription
-        self.pose_sub = self.create_subscription(
-            Pose2D,
-            '/current_pose',
-            self.pose_callback,
-            10)
-         # Velocity subscription
-        self.vel_sub = self.create_subscription(
-            Pose2D,
-            '/ol_rates',
-            self.vel_callback,
-            10)
-        self.current_state = np.zeros(4)  # x, y, theta, vel
-
-        # Command publisher
-        self.command_pub = self.create_publisher(Twist, "/cmd_vel", 10)
-
+        # Whether to waypoint positions are absolute or relative to the body frame
+        self.declare_parameter("relative_mode", False)
         # How far ahead on the path to target (m)
         self.declare_parameter("lookahead_distance", 1.0)
         # Range near vehicle (m) to designate waypoints as "visited" and remove from consideration
@@ -67,17 +54,36 @@ class PursuitNode(Node):
         # Proportional steering gain
         self.declare_parameter("Kp_theta", 1.0)
 
+        if not self.get_parameter('relative_mode').value:
+            # Pose subscription
+            self.pose_sub = self.create_subscription(
+                PoseWithCovarianceStamped,
+                '/amcl_pose',
+                self.pose_callback,
+                10)
+        # Velocity subscription
+        self.vel_sub = self.create_subscription(
+            Twist,
+            '/ol_rates',
+            self.vel_callback,
+            10)
+        self.current_state = np.zeros(4)  # x, y, theta, vel
+
+        # Command publisher
+        self.command_pub = self.create_publisher(Twist, "/cmd_vel", 10)
+
         self.load_ol_model()
 
     def pose_callback(self, state_msg):
-        self.current_state[0] = state_msg.x
-        self.current_state[1] = state_msg.y
-        self.current_state[2] = state_msg.theta
+        pose = state_msg.pose.pose
+        self.current_state[0] = pose.position.x
+        self.current_state[1] = pose.position.y
+        self.current_state[2] = pose.orientation.z
 
     def vel_callback(self, vel_msg):
         self.current_state[3] = vel_msg.linear.x
 
-    def path_callback(self, path_msg):
+    async def path_callback(self, path_msg):
         # Zero controls when new path is loaded.
         path_id = None
         with self.path_lock:
@@ -85,7 +91,7 @@ class PursuitNode(Node):
             path_id = self.path_num
         
         poses = path_msg.poses
-        waypoints = [[pose.x, pose.y, pose.theta] for pose in poses]
+        waypoints = [[pose.position.x, pose.position.y, pose.orientation.z] for pose in poses]
         self.get_logger().info(f"Received new path with {len(waypoints)}")
         wp_idx = 0
         while self.path_num == path_id:
@@ -104,7 +110,7 @@ class PursuitNode(Node):
             cmd_msg.linear.x = control_input[0]
             cmd_msg.angular.z = control_input[1]
             self.command_pub.publish(cmd_msg)
-            rclpy.spin_once(self, timeout_sec=0.1)
+            await asyncio.sleep(0.1)
     
     def load_ol_model(self):
 
