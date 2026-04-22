@@ -7,7 +7,8 @@ import asyncio
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from geometry_msgs.msg import Pose2D
 from geometry_msgs.msg import Twist
-from nav_2d_msgs.msg import Path
+from nav_2d_msgs.msg import Path2D
+from nav_msgs.msg import Path
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.executors import ExternalShutdownException
@@ -26,14 +27,7 @@ class PursuitNode(Node):
 
     def __init__(self):
         super().__init__('pure_pursuit')
-        # Path subscription
         self.path_callback_group = ReentrantCallbackGroup()
-        self.path_sub = self.create_subscription(
-            Path,
-            './waypoints',
-            self.listener_callback,
-            1,
-            callback_group=self.path_callback_group)
         self.path_lock = threading.Lock()
         self.path_num = 0
         
@@ -55,12 +49,27 @@ class PursuitNode(Node):
         self.declare_parameter("Kp_theta", 1.0)
 
         if not self.get_parameter('relative_mode').value:
-            # Pose subscription
+            # Absolute pose subscription
             self.pose_sub = self.create_subscription(
                 PoseWithCovarianceStamped,
                 '/amcl_pose',
                 self.pose_callback,
                 10)
+            # Absolute path subscription
+            self.path_sub = self.create_subscription(
+                Path,
+                './waypoints',
+                self.listener_callback,
+                1,
+                callback_group=self.path_callback_group)
+        else:
+            # Relative path subscription
+            self.path_sub = self.create_subscription(
+                Path2D,
+                '/line_path',
+                self.listener_callback,
+                1,
+                callback_group=self.path_callback_group)
         # Velocity subscription
         self.vel_sub = self.create_subscription(
             Twist,
@@ -91,7 +100,14 @@ class PursuitNode(Node):
             path_id = self.path_num
         
         poses = path_msg.poses
-        waypoints = [[pose.position.x, pose.position.y, pose.orientation.z] for pose in poses]
+        waypoints = []
+        if not self.get_parameter('relative_mode').value:
+            # Absolute Path
+            waypoints = [[pose.position.x, pose.position.y, pose.orientation.z] for pose in poses]
+        else:
+            # Relative Path2D
+            waypoints = [[pose.x, pose.y, pose.theta] for pose in poses]
+
         self.get_logger().info(f"Received new path with {len(waypoints)}")
         wp_idx = 0
         while self.path_num == path_id:
