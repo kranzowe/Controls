@@ -21,13 +21,13 @@ def get_pwm_steer_from_turn_radius(ol_model, turn_radius):
     if turn_radius > 0:
         if turn_radius <= ol_model.steering.ol_radius[-1]:
             return ol_model.steering.pwms[-1]
-        l_rad_idx = np.where(ol_model.steering.ol_radius >= turn_radius)[-1][0]
+        l_rad_idx = int(np.where(ol_model.steering.ol_radius >= turn_radius)[-1][0])
         h_rad_idx = l_rad_idx + 1
         h_radius = ol_model.steering.ol_radius[h_rad_idx]
     elif turn_radius < 0:
         if turn_radius >= ol_model.steering.ol_radius[0]:
             return ol_model.steering.pwms[0]
-        h_rad_idx = np.where(ol_model.steering.ol_radius <= turn_radius)[0][0]
+        h_rad_idx = int(np.where(ol_model.steering.ol_radius <= turn_radius)[0][0])
         l_rad_idx = h_rad_idx + 1
         h_radius = ol_model.steering.ol_radius[h_rad_idx]
         if h_rad_idx == ol_model.steering.zero_idx:
