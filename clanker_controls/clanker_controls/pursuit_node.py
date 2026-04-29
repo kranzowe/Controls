@@ -106,8 +106,7 @@ class PursuitNode(Node):
         self.declare_parameter("debug", False)
         self.debug_prints = self.get_parameter("debug").value
 
-        self.load_ol_model()
-        self.ol_model = control.load_ol_model()
+        self.ol_model = control.load_ol_model(self.get_logger())
         self.ol_model_loaded = (self.ol_model is not None)
 
         if(load_waypoints):
