@@ -20,6 +20,7 @@ import csv
 import math
 import yaml
 from types import SimpleNamespace
+import control
 
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
@@ -106,6 +107,8 @@ class PursuitNode(Node):
         self.debug_prints = self.get_parameter("debug").value
 
         self.load_ol_model()
+        self.ol_model = control.load_ol_model()
+        self.ol_model_loaded = (self.ol_model is not None)
 
         if(load_waypoints):
             self.load_waypoint_csv()
@@ -217,32 +220,7 @@ class PursuitNode(Node):
         #     cmd_msg.angular.z = control_input[1]
         #     self.command_pub.publish(cmd_msg)
         #     rclpy.spin_once(self, timeout_sec=0.1)
-    
-    def load_ol_model(self):
 
-        #get the robo rover share directory
-        robo_share_dir = get_package_share_directory("robo_rover")
-        ol_path = os.path.join(robo_share_dir, OL_MODEL_SUBPATH)
-
-        with open(ol_path, "r") as file:
-            try:
-                model_raw = yaml.safe_load(file)
-
-            except:
-                self.get_logger().error("Failed to open ol model!")
-                return
-            
-        self.ol_model = SimpleNamespace()
-        self.ol_model.velocity = SimpleNamespace()
-        self.ol_model.steering = SimpleNamespace()
-        self.ol_model.time_constant = model_raw["time_constant"]
-        self.ol_model.velocity.ol_velocities = np.array(model_raw["velocity"]["steady_state_velocity"])
-        self.ol_model.velocity.pwms = np.array(model_raw["velocity"]["pwm_values"])
-        self.ol_model.steering.ol_radius = np.array(model_raw["angular"]["turn_radius_values"])
-        self.ol_model.steering.pwms = np.array(model_raw["angular"]["pwm_values"])
-        self.ol_model.steering.zero_idx = np.argmax(np.abs(self.ol_model.steering.ol_radius))
-
-        self.ol_model_loaded = True
 
     def param_cb_timer(self):
 
