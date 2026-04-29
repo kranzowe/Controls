@@ -34,5 +34,5 @@ def get_pwm_steer_from_turn_radius(ol_model, turn_radius):
             h_radius = -h_radius
     l_radius = ol_model.steering.ol_radius[l_rad_idx]
     m = np.abs((ol_model.steering.pwms[h_rad_idx] - ol_model.steering.pwms[l_rad_idx]) / (h_radius - l_radius))
-    b = ol_model.steering.pwms[l_radius]
+    b = ol_model.steering.pwms[l_rad_idx]
     return b + m * (turn_radius - l_radius)
