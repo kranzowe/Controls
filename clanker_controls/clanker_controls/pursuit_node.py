@@ -156,7 +156,7 @@ class PursuitNode(Node):
             color_msg.a = 1.0
 
             msg = MarkerArray()
-            for point in waypoints:
+            for idx, point in enumerate(waypoints):
                 marker_msg = Marker()
                 marker_msg.pose.position.x = point[0]
                 marker_msg.pose.position.y = point[1]
@@ -164,10 +164,16 @@ class PursuitNode(Node):
 
                 marker_msg.pose.orientation.z = point[2]
 
+                marker_msg.scale.x = 0.1
+                marker_msg.scale.y = 0.1
+                marker_msg.scale.z = 0.2
+
                 marker_msg.type = 0
                 marker_msg.action = 0
                 marker_msg.header.stamp = self.get_clock().now().to_msg()
                 marker_msg.header.frame_id = "map"
+                marker_msg.id = idx
+
                 marker_msg.color = color_msg
                 
                 msg.markers.append(marker_msg)
