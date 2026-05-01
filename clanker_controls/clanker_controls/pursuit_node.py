@@ -92,6 +92,8 @@ class PursuitNode(Node):
         # Proportional steering gain
         self.declare_parameter("Kp_theta", 0.0)
 
+        self.declare_parameter("ol_speed", 1395.0)
+
         self.declare_parameter("visualization_on", True)
 
         #declare parameters to load waypoints
@@ -261,7 +263,7 @@ class PursuitNode(Node):
         self.pp_params = PurePursuitParams(
             lookahead_distance=self.get_parameter('lookahead_distance').value,
             wheelbase=self.get_parameter('wheelbase').value,
-            desired_vel=self.get_parameter('desired_vel').value,
+            desired_vel=self.get_parameter('ol_speed').value,
             pruning_distance=self.get_parameter('pruning_distance').value,
             Kp_v=self.get_parameter('Kp_v').value,
             Kp_theta=self.get_parameter('Kp_theta').value,
