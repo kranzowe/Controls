@@ -271,8 +271,8 @@ class PursuitNode(Node):
             control_input, _, wp_prune_idx = pure_pursuit(self.waypoints[self.wp_idx:], state, self.pp_params, logger=self.get_logger())
             self.wp_idx += wp_prune_idx
             cmd_msg = Twist()
-            cmd_msg.linear.x = control_input[0]
-            cmd_msg.angular.z = control_input[1]
+            cmd_msg.linear.x = float(control_input[0])
+            cmd_msg.angular.z = float(control_input[1])
             self.command_pub.publish(cmd_msg)
 
     def lookup_tf_transform(self, target_frame, source_frame):
