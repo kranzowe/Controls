@@ -83,7 +83,7 @@ def pure_pursuit(waypoints, current_state, params: PurePursuitParams, logger=Non
         case "pwm":
             vel_input = params.desired_vel
             turn_radius = 1/curvature if curvature != 0 else 99999
-            control_input = [1395, control.get_pwm_steer_from_turn_radius(params.ol_model, turn_radius)]
+            control_input = [1395, control.get_pwm_steer_from_turn_radius(params.ol_model, -turn_radius)]
         case _:
             raise ValueError(f"Invalid control mode: {params.mode}")
 
