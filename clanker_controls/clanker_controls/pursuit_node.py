@@ -82,7 +82,7 @@ class PursuitNode(Node):
         # Range near vehicle (m) to designate waypoints as "visited" and remove from consideration
         # Ideally the distance between lookahead_distance and pruning distance should be greater
         # than the distance between waypoints to prevent snapping.
-        self.declare_parameter("pruning_distance", 0.0)
+        self.declare_parameter("pruning_distance", 0.3)
         # Velocity to target (m/s).
         self.declare_parameter("desired_vel", 0.5)
         # Vehicle property for steering mechanics (m)
@@ -98,6 +98,9 @@ class PursuitNode(Node):
         self.declare_parameter("load_waypoints", True)
         load_waypoints = self.get_parameter("load_waypoints").value
         self.declare_parameter("waypoints_file", "ohmy_big_path_SMOOTH.csv")
+        # Linear interpolation spacing for waypoint densification (meters).
+        # Set <= 0 to disable densification.
+        self.declare_parameter("waypoint_interp_spacing", 0.35)
 
         self.declare_parameter("debug", False)
         self.debug_prints = self.get_parameter("debug").value
@@ -144,6 +147,12 @@ class PursuitNode(Node):
         for idx in range(0, len(self.loaded_waypoints.x_pos)):
             waypoints.append(np.array([self.loaded_waypoints.x_pos[idx], self.loaded_waypoints.y_pos[idx], self.loaded_waypoints.theta[idx]]))
 
+        interp_spacing = float(self.get_parameter("waypoint_interp_spacing").value)
+        waypoints = self.interpolate_waypoints(waypoints, interp_spacing)
+        self.get_logger().info(
+            f"Loaded {len(self.loaded_waypoints.x_pos)} raw waypoints, "
+            f"interpolated to {len(waypoints)} points with spacing={interp_spacing:.3f} m"
+        )
 
         if(self.get_parameter("visualization_on").value):
 
@@ -177,8 +186,32 @@ class PursuitNode(Node):
             self.viz_pub.publish(msg)
 
         self.waypoints = waypoints
+        self.wp_idx = 0
 
         self.loaded_waypoints.ready = True
+
+    def interpolate_waypoints(self, waypoints, spacing_m):
+        """Linearly densify waypoint list using fixed point spacing in meters."""
+        if len(waypoints) < 2 or spacing_m <= 0.0:
+            return waypoints
+
+        dense_waypoints = [np.array(waypoints[0], dtype=float)]
+        for idx in range(len(waypoints) - 1):
+            p0 = np.array(waypoints[idx], dtype=float)
+            p1 = np.array(waypoints[idx + 1], dtype=float)
+
+            seg_vec = p1[:2] - p0[:2]
+            seg_len = float(np.linalg.norm(seg_vec))
+            if seg_len <= 1e-9:
+                continue
+
+            # Number of sub-segments so each step is <= spacing_m.
+            num_subsegments = int(np.ceil(seg_len / spacing_m))
+            for k in range(1, num_subsegments + 1):
+                t = k / num_subsegments
+                dense_waypoints.append(p0 + t * (p1 - p0))
+
+        return dense_waypoints
             
     def pose_callback(self, msg):
 
