@@ -179,7 +179,7 @@ class PursuitNode(Node):
 
         self.loaded_waypoints.ready = True
             
-    def pose_callback(self, state_msg):
+    def pose_callback(self, msg):
 
         self.get_logger().warn("Interesting this is getting called, the pose should be broadcast over tf2, not published....")
 
