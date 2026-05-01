@@ -81,7 +81,7 @@ def pure_pursuit(waypoints, current_state, params: PurePursuitParams, logger=Non
             delta = np.arctan(curvature * params.wheelbase)
             control_input = [vel_input, delta]
         case "pwm":
-            vel_input = params.desired_vel + params.Kp_v * (params.desired_vel - current_state[3])
+            vel_input = params.desired_vel
             turn_radius = 1/curvature if curvature != 0 else 99999
             control_input = [control.get_pwm_vel_from_vel(params.ol_model, vel_input), control.get_pwm_steer_from_turn_radius(params.ol_model, turn_radius)]
         case _:
