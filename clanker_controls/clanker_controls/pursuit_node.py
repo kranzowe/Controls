@@ -7,6 +7,7 @@ import threading
 
 from geometry_msgs.msg import Pose2D
 from geometry_msgs.msg import Twist
+from geometry_msgs.msg import PoseWithCovarianceStamped
 from visualization_msgs.msg import MarkerArray, Marker
 from std_msgs.msg import ColorRGBA
 from rclpy.duration import Duration
@@ -42,18 +43,12 @@ class PursuitNode(Node):
         super().__init__('pure_pursuit')
         # Path subscription
         self.path_callback_group = ReentrantCallbackGroup()
-        self.path_sub = self.create_subscription(
-            Path2D,
-            '/pathfinder',
-            self.path_callback,
-            1,
-            callback_group=self.path_callback_group)
         self.path_lock = threading.Lock()
         self.path_num = 0
         
         # Pose subscription
         self.pose_sub = self.create_subscription(
-            Pose2D,
+            PoseWithCovarianceStamped,
             '/amcl_pose',
             self.pose_callback,
             10)
@@ -188,9 +183,9 @@ class PursuitNode(Node):
 
         self.get_logger().warn("Interesting this is getting called, the pose should be broadcast over tf2, not published....")
 
-        # self.current_state[0] = state_msg.x
-        # self.current_state[1] = state_msg.y
-        # self.current_state[2] = state_msg.theta
+        self.current_state[0] = msg.pose.pose.position.x
+        self.current_state[1] = msg.pose.pose.position.y
+        self.current_state[2] = self.get_yaw_from_quat(msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w)
 
     def vel_callback(self, vel_msg):
         self.current_state[3] = vel_msg.linear.x
@@ -249,20 +244,21 @@ class PursuitNode(Node):
             #must first determine the current state of the rover from tf2
 
             #get a transform 
-            transform : TransformStamped = self.lookup_tf_transform("map", "base_link")
+            # transform : TransformStamped = self.lookup_tf_transform("map", "base_link")
 
             #ensure a valid transform
-            if(transform is None):
-                return
+            # if(transform is None):
+            #     return
             
             #convert to the yaw angle
-            yaw = self.get_yaw_from_quat(transform.transform.rotation.x, transform.transform.rotation.y, transform.transform.rotation.z, transform.transform.rotation.w)
+            # yaw = self.get_yaw_from_quat(transform.transform.rotation.x, transform.transform.rotation.y, transform.transform.rotation.z, transform.transform.rotation.w)
 
             #i believe this is the expected format
             #you'll need to take a look at how I'm setting the velocity here... the topic which vinnie subs to (to get velocity) only is published in the pwm control mode of the rover, however that is only published in pwm mode...
             #however slam def works better out of pwm mode... no good reason why but it does... so don;t change that
             #may need to get creative here idk?
-            state = [transform.transform.translation.x, transform.transform.translation.y, yaw, self.current_state[3]]
+            # state = [transform.transform.translation.x, transform.transform.translation.y, yaw, self.current_state[3]]
+            state = self.current_state
 
             if(self.debug_prints):
                 self.get_logger().info(f"Current state x: {state[0]}, y: {state[1]}, yaw: {state[2]}. Next waypoint x: {self.waypoints[self.wp_idx][0]}, y: {self.waypoints[self.wp_idx][1]}. Waypoint num {self.wp_idx}")
