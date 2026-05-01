@@ -63,6 +63,7 @@ class PursuitNode(Node):
         # Command publisher
         self.command_pub = self.create_publisher(Twist, "/cmd_vel", 10)
         self.viz_pub = self.create_publisher(MarkerArray, "waypoint_markers", 10)
+        self.target_pub = self.create_publisher(Pose2D, "/pursuit_target", 10)
 
         # for waypoints from a csv
         self.loaded_waypoints = SimpleNamespace()
@@ -264,12 +265,17 @@ class PursuitNode(Node):
                 self.get_logger().info(f"Current state x: {state[0]}, y: {state[1]}, yaw: {state[2]}. Next waypoint x: {self.waypoints[self.wp_idx][0]}, y: {self.waypoints[self.wp_idx][1]}. Waypoint num {self.wp_idx}")
             
             #this is all og vinnie pure pursuit :) -> I think he tested this bit in the sim but very unsure
-            control_input, _, wp_prune_idx = pure_pursuit(self.waypoints[self.wp_idx:], state, self.pp_params, logger=self.get_logger())
+            control_input, lookahead_point, wp_prune_idx = pure_pursuit(self.waypoints[self.wp_idx:], state, self.pp_params, logger=self.get_logger())
             self.wp_idx += wp_prune_idx
             cmd_msg = Twist()
             cmd_msg.linear.x = float(control_input[0])
             cmd_msg.angular.z = float(control_input[1])
             self.command_pub.publish(cmd_msg)
+            target_msg = Pose2D()
+            target_msg.x = lookahead_point[0]
+            target_msg.y = lookahead_point[1]
+            target_msg.theta = lookahead_point[2]
+            self.target_pub.publish(target_msg)
 
     def lookup_tf_transform(self, target_frame, source_frame):
         try:

@@ -5,6 +5,8 @@ from types import SimpleNamespace
 
 import control
 
+EPS = 1e-9
+
 @dataclass
 class PurePursuitParams:
     ol_model: SimpleNamespace
@@ -34,11 +36,31 @@ def pure_pursuit(waypoints, current_state, params: PurePursuitParams, logger=Non
                 raise ValueError(f"Invalid control mode: {params.mode}")
         return control_input, current_state[:3], 0
 
+    current_xy = np.array(current_state[:2], dtype=float)
     lookahead_point = []
     wp_idx = -1
     wp_prune_idx = 0
     min_dist = float('inf')
     min_dist_idx = -1
+
+    # Advance past waypoints/segments that are already behind the vehicle.
+    # This keeps progress monotonic even when pruning_distance is zero.
+    seg_idx = 0
+    while seg_idx < len(waypoints) - 1:
+        p0 = np.array(waypoints[seg_idx][:2], dtype=float)
+        p1 = np.array(waypoints[seg_idx + 1][:2], dtype=float)
+        seg = p1 - p0
+        seg_len_sq = float(np.dot(seg, seg))
+        if seg_len_sq < EPS:
+            seg_idx += 1
+            continue
+        t = float(np.dot(current_xy - p0, seg) / seg_len_sq)
+        if t > 1.0:
+            seg_idx += 1
+        else:
+            break
+    wp_prune_idx = max(wp_prune_idx, seg_idx)
+
     for i in range(len(waypoints)):
         wp = waypoints[i]
 
@@ -58,7 +80,11 @@ def pure_pursuit(waypoints, current_state, params: PurePursuitParams, logger=Non
             min_dist = dist
             min_dist_idx = i
     if wp_idx == -1:
-        lookahead_point = waypoints[min_dist_idx]
+        # If no point is inside lookahead, choose a point ahead of the nearest one.
+        # This avoids repeatedly targeting stale geometry behind the vehicle.
+        fallback_idx = min(min_dist_idx + 1, len(waypoints) - 1)
+        lookahead_point = waypoints[fallback_idx]
+        wp_prune_idx = max(wp_prune_idx, min_dist_idx)
     elif wp_idx < len(waypoints)-1:
         lookahead_point = max_intersect_segment_circle(waypoints[wp_idx], waypoints[wp_idx + 1], current_state[:2], params.lookahead_distance)
     else:
@@ -83,7 +109,8 @@ def pure_pursuit(waypoints, current_state, params: PurePursuitParams, logger=Non
         case "pwm":
             vel_input = params.desired_vel
             turn_radius = 1/curvature if curvature != 0 else 99999
-            logger.info(f"Turn Radius: {turn_radius}")
+            if logger is not None:
+                logger.info(f"Turn Radius: {turn_radius}")
             control_input = [1395, control.get_pwm_steer_from_turn_radius(params.ol_model, turn_radius)]
         case _:
             raise ValueError(f"Invalid control mode: {params.mode}")
