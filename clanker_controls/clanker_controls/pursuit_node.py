@@ -59,7 +59,7 @@ class PursuitNode(Node):
             10)
          # Velocity subscription
         self.vel_sub = self.create_subscription(
-            Pose2D,
+            Twist,
             '/ol_rates',
             self.vel_callback,
             10)
@@ -249,7 +249,7 @@ class PursuitNode(Node):
             #must first determine the current state of the rover from tf2
 
             #get a transform 
-            transform : TransformStamped = self.lookup_tf_transform("base_link", "map")
+            transform : TransformStamped = self.lookup_tf_transform("map", "base_link")
 
             #ensure a valid transform
             if(transform is None):
