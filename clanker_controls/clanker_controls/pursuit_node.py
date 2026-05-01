@@ -78,7 +78,7 @@ class PursuitNode(Node):
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
         # How far ahead on the path to target (m)
-        self.declare_parameter("lookahead_distance", 1.0)
+        self.declare_parameter("lookahead_distance", 1.5)
         # Range near vehicle (m) to designate waypoints as "visited" and remove from consideration
         # Ideally the distance between lookahead_distance and pruning distance should be greater
         # than the distance between waypoints to prevent snapping.
