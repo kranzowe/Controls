@@ -81,7 +81,7 @@ class PursuitNode(Node):
         # Range near vehicle (m) to designate waypoints as "visited" and remove from consideration
         # Ideally the distance between lookahead_distance and pruning distance should be greater
         # than the distance between waypoints to prevent snapping.
-        self.declare_parameter("pruning_distance", 0.2)
+        self.declare_parameter("pruning_distance", 0.0)
         # Velocity to target (m/s).
         self.declare_parameter("desired_vel", 0.5)
         # Vehicle property for steering mechanics (m)
@@ -96,7 +96,7 @@ class PursuitNode(Node):
         #declare parameters to load waypoints
         self.declare_parameter("load_waypoints", True)
         load_waypoints = self.get_parameter("load_waypoints").value
-        self.declare_parameter("waypoints_file", "ohmy_big_path.csv")
+        self.declare_parameter("waypoints_file", "ohmy_big_path_SMOOTH.csv")
 
         self.declare_parameter("debug", False)
         self.debug_prints = self.get_parameter("debug").value
