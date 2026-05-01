@@ -47,34 +47,30 @@ def get_pwm_vel_from_vel(ol_model, vel):
         return m * vel + b
 
 def get_pwm_steer_from_turn_radius(ol_model, turn_radius):
-    if np.abs(turn_radius) >= ol_model.steering.ol_radius[ol_model.steering.zero_idx]:
-        return ol_model.steering.pwms[ol_model.steering.zero_idx]
-    h_rad_idx, l_rad_idx, h_radius, l_radius, m, b = None, None, None, None, None, None
+    center_idx = ol_model.steering.zero_idx
+    center_radius = np.abs(ol_model.steering.ol_radius[center_idx])
+    center_pwm = ol_model.steering.pwms[center_idx]
+
+    if not np.isfinite(turn_radius) or turn_radius == 0.0:
+        return center_pwm
+
+    abs_radius = np.abs(turn_radius)
+    if abs_radius >= center_radius:
+        return center_pwm
+
     if turn_radius > 0:
-        if turn_radius <= ol_model.steering.ol_radius[-1]:
-            return ol_model.steering.pwms[-1]
-        l_rad_idx = int(np.where(ol_model.steering.ol_radius >= turn_radius)[0][-1])
-        h_rad_idx = l_rad_idx + 1
-        h_radius = ol_model.steering.ol_radius[h_rad_idx]
+        # Right turns: sort by |radius| so interpolation x-axis is monotonic.
+        radii = np.abs(ol_model.steering.ol_radius[center_idx + 1:])
+        pwms = ol_model.steering.pwms[center_idx + 1:]
+        sort_idx = np.argsort(radii)
+        radii = radii[sort_idx]
+        pwms = pwms[sort_idx]
+    else:
+        # Left turns are already ordered by increasing |radius| in the model.
+        radii = np.abs(ol_model.steering.ol_radius[:center_idx])
+        pwms = ol_model.steering.pwms[:center_idx]
 
-        l_radius = ol_model.steering.ol_radius[l_rad_idx]
-        m = np.abs((ol_model.steering.pwms[l_rad_idx] - ol_model.steering.pwms[h_rad_idx]) / (l_radius - h_radius))
-        b = ol_model.steering.pwms[l_rad_idx]
-        return b + m * (l_radius - turn_radius)
-    elif turn_radius < 0:
-        if turn_radius >= ol_model.steering.ol_radius[0]:
-            return ol_model.steering.pwms[0]
-        if turn_radius < ol_model.steering.ol_radius[ol_model.steering.zero_idx-1]:
-            h_rad_idx = ol_model.steering.zero_idx-1
-            l_rad_idx = ol_model.steering.zero_idx
-        else:
-            h_rad_idx = int(np.where(ol_model.steering.ol_radius <= turn_radius)[0][0])
-            l_rad_idx = h_rad_idx + 1
-        h_radius = ol_model.steering.ol_radius[h_rad_idx]
-        if h_rad_idx == ol_model.steering.zero_idx:
-            h_radius = -h_radius
-
-        l_radius = ol_model.steering.ol_radius[l_rad_idx]
-        m = np.abs((ol_model.steering.pwms[h_rad_idx] - ol_model.steering.pwms[l_rad_idx]) / (h_radius - l_radius))
-        b = ol_model.steering.pwms[l_rad_idx]
-        return b + m * (turn_radius - l_radius)
+    # Add center point so large radii naturally interpolate to straight steering.
+    radii = np.append(radii, center_radius)
+    pwms = np.append(pwms, center_pwm)
+    return float(np.interp(abs_radius, radii, pwms))
