@@ -54,7 +54,7 @@ class PursuitNode(Node):
         # Pose subscription
         self.pose_sub = self.create_subscription(
             Pose2D,
-            '/current_pose',
+            '/amcl_pose',
             self.pose_callback,
             10)
          # Velocity subscription
