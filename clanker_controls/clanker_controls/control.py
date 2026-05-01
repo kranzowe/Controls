@@ -33,13 +33,13 @@ def load_ol_model(logger=None):
         return ol_model
 
 def get_pwm_vel_from_vel(ol_model, vel):
-    if vel >= ol_model.velocity.ol_velocities[0]:
+    if vel <= ol_model.velocity.ol_velocities[0]:
         return ol_model.velocity.pwms[0]
-    elif vel <= ol_model.velocity.ol_velocities[-1]:
+    elif vel >= ol_model.velocity.ol_velocities[-1]:
         return ol_model.velocity.pwms[-1]
     else:
-        h_vel_idx = np.where(ol_model.velocity.ol_velocities <= vel)[0][0]
-        l_vel_idx = h_vel_idx - 1
+        h_vel_idx = np.where(ol_model.velocity.ol_velocities >= vel)[0][0]
+        l_vel_idx = h_vel_idx + 1
         h_vel = ol_model.velocity.ol_velocities[h_vel_idx]
         l_vel = ol_model.velocity.ol_velocities[l_vel_idx]
         m = (ol_model.velocity.pwms[h_vel_idx] - ol_model.velocity.pwms[l_vel_idx]) / (h_vel - l_vel)
