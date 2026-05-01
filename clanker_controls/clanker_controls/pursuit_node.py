@@ -88,20 +88,20 @@ class PursuitNode(Node):
         # than the distance between waypoints to prevent snapping.
         self.declare_parameter("pruning_distance", 0.2)
         # Velocity to target (m/s).
-        self.declare_parameter("desired_vel", 1.0)
+        self.declare_parameter("desired_vel", 0.5)
         # Vehicle property for steering mechanics (m)
         self.declare_parameter("wheelbase", 0.171)
         # Proportional velocity gain
-        self.declare_parameter("Kp_v", 1.0)
+        self.declare_parameter("Kp_v", 0.0)
         # Proportional steering gain
-        self.declare_parameter("Kp_theta", 1.0)
+        self.declare_parameter("Kp_theta", 0.0)
 
         self.declare_parameter("visualization_on", True)
 
         #declare parameters to load waypoints
         self.declare_parameter("load_waypoints", True)
         load_waypoints = self.get_parameter("load_waypoints").value
-        self.declare_parameter("waypoints_file", "Course11_small_path.csv")
+        self.declare_parameter("waypoints_file", "ohmy_big_path.csv")
 
         self.declare_parameter("debug", False)
         self.debug_prints = self.get_parameter("debug").value
