@@ -99,7 +99,7 @@ class PursuitNode(Node):
         #declare parameters to load waypoints
         self.declare_parameter("load_waypoints", True)
         load_waypoints = self.get_parameter("load_waypoints").value
-        self.declare_parameter("waypoints_file", "ohmy_big_path_SMOOTH.csv")
+        self.declare_parameter("waypoints_file", "CURRENT_PATH.csv")
         # Linear interpolation spacing for waypoint densification (meters).
         # Set <= 0 to disable densification.
         self.declare_parameter("waypoint_interp_spacing", 0.35)
